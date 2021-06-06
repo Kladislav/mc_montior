@@ -1,6 +1,6 @@
 # MC_MONITOR
 
-Mediacube services montioring.
+Mediacube services monitoring
 
 ## Installation
 
@@ -13,7 +13,7 @@ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubun
 sudo apt update
 sudo apt install docker-ce
 ```
-### Setting up  
+### Configure
 ```bash
 git clone https://github.com/Kladislav/mc_montior
 cd mc_monitor
@@ -45,3 +45,7 @@ location /grafana {
 host    all             all             172.22.0.0/24            trust
 ```
 
+### Start service
+```bash
+docker-compose up
+```
