@@ -1,0 +1,99 @@
+version: '3'
+networks:
+  monitoring:
+    driver: bridge
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    expose:
+      - 9090
+    ports:
+      - 9090:9090
+    networks:
+      - monitoring
+  nodeexporter:
+    image: prom/node-exporter:latest
+    container_name: nodeexporter
+    user: root
+    privileged: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    expose:
+      - 9100
+    ports:
+      - 9100:9100
+    networks:
+      - monitoring
+  postgresexporter:
+    image: wrouesnel/postgres_exporter:latest
+    restart: unless-stopped
+    volumes:
+      - ./postgresql/:/etc/postgresql/
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:qwer@172.17.0.1:5432/?sslmode=disable
+    expose:
+      - 9187
+    ports:
+      - 9187:9187
+    networks:
+      - monitoring
+  nginxexporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginxexporter
+    restart: unless-stopped
+    environment:
+      - SCRAPE_URI=http://172.17.0.1/nginx_status
+      - TELEMETRY_PATH=/metrics
+      - NGINX_RETRIES=10
+    expose:
+      - 9113
+    ports:
+      - 9113:9113
+    networks:
+      - monitoring
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/datasources:/etc/grafana/datasources
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+    restart: unless-stopped
+    expose:
+      - 3000
+    ports:
+      - 3000:3000
+    networks:
+      - monitoring
